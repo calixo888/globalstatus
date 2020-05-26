@@ -20,9 +20,18 @@ app.set('views', __dirname + '/views');
 app.use('/static', express.static(__dirname + '/static'))
 app.engine('html', require('ejs').renderFile);
 
+let loggedIn = false;
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  if (loggedIn) {
+    res.render("index.html");
+  } else {
+    res.redirect("/login");
+  }
+});
+
+app.get("/login", (req, res) => {
+  res.render("login.html");
 });
 
 
