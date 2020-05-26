@@ -26,6 +26,26 @@ app.engine('html', require('ejs').renderFile);
 const client_id = "hidden";
 const client_secret = "hidden";
 
+const setSlackStatus = (access_token, emoji, status, expiration) => {
+  const body = {
+    profile: {
+      status_text: status,
+      status_emoji: emoji,
+      status_expiration: expiration
+    }
+  }
+
+  const headers = {
+    headers: {
+      Authorization: "Bearer " + access_token
+    }
+  }
+
+  axios.post("https://slack.com/api/users.profile.set", body, headers).then((response) => {
+    console.log(response.config);
+  });
+}
+
 app.get("/", (req, res) => {
   res.render("index.html");
 });
@@ -48,28 +68,36 @@ app.get("/logout", (req, res) => {
   res.redirect("/");
 });
 
-app.get("/console", async (req, res) => {
-  const slackAccessToken = req.cookies.slack_access_token;
+app.route("/console")
+  .get(async (req, res) => {
+    const slackAccessToken = req.cookies.slack_access_token;
 
-  if (slackAccessToken) {
-    let slackUser = undefined;
+    if (slackAccessToken) {
+      let slackUser = undefined;
 
-    // SLACK INFO GRABBING
-    await axios.get(`https://slack.com/api/users.identity?token=${slackAccessToken}`).then((response) => {
-      slackUser = {
-        name: response.data.user.name,
-        email: response.data.user.email,
-        img: response.data.user.image_1024
-      }
-    });
+      // SLACK INFO GRABBING
+      await axios.get(`https://slack.com/api/users.identity?token=${slackAccessToken}`).then((response) => {
+        slackUser = {
+          name: response.data.user.name,
+          email: response.data.user.email,
+          img: response.data.user.image_1024
+        }
+      });
 
-    res.render("console.html", context={
-      slackUser,
-    });
-  } else {
-    res.send("You aren't logged in.")
-  }
-});
+      res.render("console.html", context={
+        slackUser,
+      });
+    } else {
+      res.send("You aren't logged in.")
+    }
+  })
+  .post(async (req, res) => {
+    const body = req.body;
+    const access_token = req.cookies.slack_access_token;
+
+    setSlackStatus(access_token, body.emoji, body.status, 0);
+    res.redirect("/console");
+  });
 
 
 const port = process.env.PORT || 3000;
