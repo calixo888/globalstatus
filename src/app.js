@@ -23,7 +23,6 @@ app.set('views', __dirname + '/views');
 app.use('/static', express.static(__dirname + '/static'))
 app.engine('html', require('ejs').renderFile);
 
-let loggedIn = false;
 const client_id = "hidden";
 const client_secret = "hidden";
 
@@ -36,7 +35,7 @@ app.get("/login", (req, res) => {
 
   if (slackCode) {
     axios.get(`https://slack.com/api/oauth.v2.access?client_id=${client_id}&client_secret=${client_secret}&code=${slackCode}`).then((response) => {
-      res.cookie("user", response.data.authed_user);
+      res.cookie("slack_access_token", response.data.authed_user.access_token);
       res.redirect("/console");
     });
   } else {
@@ -44,18 +43,33 @@ app.get("/login", (req, res) => {
   }
 });
 
-app.get("/console", (req, res) => {
-  if (req.cookies.user) {
-    res.send("Logged in!");
-  } else {
-    res.send("You aren't logged.")
-  }
-});
-
 app.get("/logout", (req, res) => {
   res.clearCookie("user");
   res.redirect("/");
-})
+});
+
+app.get("/console", async (req, res) => {
+  const slackAccessToken = req.cookies.slack_access_token;
+
+  if (slackAccessToken) {
+    let slackUser = undefined;
+
+    // SLACK INFO GRABBING
+    await axios.get(`https://slack.com/api/users.identity?token=${slackAccessToken}`).then((response) => {
+      slackUser = {
+        name: response.data.user.name,
+        email: response.data.user.email,
+        img: response.data.user.image_1024
+      }
+    });
+
+    res.render("console.html", context={
+      slackUser,
+    });
+  } else {
+    res.send("You aren't logged in.")
+  }
+});
 
 
 const port = process.env.PORT || 3000;
